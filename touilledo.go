@@ -50,6 +50,17 @@ func (todos *Todos) get(id int) (*TodoEntry, error) {
 }
 
 
+func (todos *Todos) clean() {
+	notDone := todos.Items[:0]
+	for _, todo := range todos.Items {
+		if !todo.IsDone {
+			notDone = append(notDone, todo)
+		}
+	}
+	todos.Items = notDone
+}
+
+
 func (todos *Todos) dump() (s string) {
 	for i := range todos.Items {
 		todo := todos.Items[i]
@@ -126,26 +137,35 @@ func main() {
 	case "done":
 		fallthrough
 	case "d":
-		id, err := getAndCheckIdFromStr(todos, os.Args[2])
-		if err != nil {
-			fmt.Println("Bad todo id")
-			return
+		for _, idstr := range os.Args[2:] {
+			id, err := getAndCheckIdFromStr(todos, idstr)
+			if err != nil {
+				fmt.Println("Bad todo id `%s`", idstr)
+				return
+			}
+			todo, _ := todos.get(id)
+			todo.done()
 		}
-		todo, _ := todos.get(id)
-		todo.done()
 		saveTodos(client, todos)
 	case "del":
-		id, err := getAndCheckIdFromStr(todos, os.Args[2])
-		if err != nil {
-			fmt.Println("Bad todo id")
-			return
+		for _, idstr := range os.Args[2:] {
+			id, err := getAndCheckIdFromStr(todos, idstr)
+			if err != nil {
+				fmt.Println("Bad todo id `%s`", idstr)
+				return
+			}
+			todos.del(id)
 		}
-		todos.del(id)
+		saveTodos(client, todos)
+	case "c":
+		fallthrough
+	case "clean":
+		todos.clean()
 		saveTodos(client, todos)
 	case "clear":
 		var todos Todos
 		saveTodos(client, &todos)
 	default:
-		fmt.Println("usage : %s [done|del|clear] {todo}", os.Args[0])
+		fmt.Println("usage : %s [done|del|clean|clear] {todo}", os.Args[0])
 	}
 }
